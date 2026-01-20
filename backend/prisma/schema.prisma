@@ -1,0 +1,201 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma-client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           Int    @id @default(autoincrement())
+  email        String @unique
+  passwordHash String
+  firstName    String @default("Unknown")
+  lastName     String @default("Unknown")
+  isAdmin      Boolean @default(false)
+
+  licences  UserLicence[]
+  questions UserQuestion[]
+
+  sessions AuthSession[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+model AuthSession {
+  id     String @id @default(cuid())
+  userId Int
+
+  refreshTokenHash String
+  expiresAt        DateTime
+
+  userAgent   String?
+  ip          String?
+  deviceLabel String?
+  revokedAt   DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("auth_sessions")
+}
+
+model Licence {
+  id    Int    @id @default(autoincrement())
+  title String
+
+  users        UserLicence[]
+  moduleGroups LicenceModuleGroup[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("licences")
+}
+
+model ModuleGroup {
+  id    Int    @id @default(autoincrement())
+  title String
+
+  licences LicenceModuleGroup[]
+  modules  Module[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("module_groups")
+}
+
+model LicenceModuleGroup {
+  licenceId     Int
+  moduleGroupId Int
+
+  licence     Licence     @relation(fields: [licenceId], references: [id], onDelete: Cascade)
+  moduleGroup ModuleGroup @relation(fields: [moduleGroupId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@id([licenceId, moduleGroupId])
+  @@map("licence_module_groups")
+}
+
+model Module {
+  id            Int    @id @default(autoincrement())
+  title         String
+  moduleGroupId Int
+
+  moduleGroup ModuleGroup @relation(fields: [moduleGroupId], references: [id], onDelete: Cascade)
+  questions   Question[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("modules")
+}
+
+model Question {
+  id       Int     @id @default(autoincrement())
+  text     String
+  imageUrl String?
+  moduleId Int?
+
+  module        Module?          @relation(fields: [moduleId], references: [id], onDelete: SetNull)
+  answerLinks   QuestionAnswer[]
+  userQuestions UserQuestion[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("questions")
+}
+
+model AnswerOption {
+  id   Int    @id @default(autoincrement())
+  text String
+
+  questionLinks QuestionAnswer[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("answer_options")
+}
+
+model QuestionAnswer {
+  questionId     Int
+  answerOptionId Int
+  correct        Boolean @default(false)
+
+  question     Question     @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answerOption AnswerOption @relation(fields: [answerOptionId], references: [id], onDelete: Cascade)
+
+  attempts AttemptAnswer[]
+
+  @@id([questionId, answerOptionId])
+  @@map("question_answers")
+}
+
+model UserLicence {
+  userId    Int
+  licenceId Int
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  licence Licence @relation(fields: [licenceId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@id([userId, licenceId])
+  @@map("user_licences")
+}
+
+model UserQuestion {
+  id         Int     @id @default(autoincrement())
+  userId     Int
+  questionId Int
+  marked     Boolean @default(false)
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  attempts AttemptAnswer[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, questionId])
+  @@map("user_questions")
+}
+
+model AttemptAnswer {
+  id             Int @id @default(autoincrement())
+  userQuestionId Int
+
+  questionId     Int
+  answerOptionId Int
+
+  answeredRight Boolean
+
+  userQuestion UserQuestion @relation(fields: [userQuestionId], references: [id], onDelete: Cascade)
+
+  questionAnswer QuestionAnswer @relation(fields: [questionId, answerOptionId], references: [questionId, answerOptionId], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([userQuestionId])
+  @@index([questionId, answerOptionId])
+  @@map("attempt_answers")
+}

@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:18
+    container_name: myapp_db
+    environment:
+      POSTGRES_DB: myapp
+      POSTGRES_USER: myapp_user
+      POSTGRES_PASSWORD: secret123
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql
+      - ./scripts:/docker-entrypoint-initdb.d:ro
+
+volumes:
+  db_data:
